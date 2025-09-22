@@ -1,0 +1,77 @@
+# === FICHIERS DE CONFIG / SECRETS ===
+.env
+.env.*.backup
+*.env.local
+*.secret
+/secrets/
+/keys/
+
+# NE PAS VERSIONNER LES TOKENS (rotations nécessaires si déjà commit)
+
+# === DÉPENDANCES ===
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# === BUILD / DIST ===
+dist/
+build/
+out/
+.tmp/
+.temp/
+.cache/
+.cache-loader/
+
+# === LOGS / SORTIES ===
+logs/
+log/
+*.log
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+dump.rdb
+*.stacktrace
+
+# === EXPORTS / BACKUPS / DONNÉES ===
+export_*.json
+mod_stats.json
+/mod_stats/
+backups/
+*.bak
+*.old
+*.save
+*.tmp
+*.swp
+*.orig
+
+# === OUTILS / ÉDITEUR ===
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# === SYSTÈME ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === TEST / COUVERTURE ===
+coverage/
+.nyc_output/
+*.lcov
+
+# === DOCS GÉNÉRÉES ===
+docs/
+typedoc/
+  
+# === DIVERS ===
+# Ignorer éventuels fichiers de génération d’images / canvas
+canvas-build/
+tmp/
+
+# Fin
