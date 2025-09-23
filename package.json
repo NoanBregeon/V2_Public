@@ -11,7 +11,6 @@
     "setup": "node setup.js"
   },
   "dependencies": {
-    "canvas": "^2.11.2",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1",
     "tmi.js": "^1.8.5"

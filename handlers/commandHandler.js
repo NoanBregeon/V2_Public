@@ -20,22 +20,18 @@ class CommandHandler {
 
     _defineCommands() {
         const defs = [
-            // Modération (Discord rôle + option Twitch)
-            ['addmodo','Ajouter un modérateur',[
-                {name:'utilisateur',type:6,description:'Utilisateur Discord (optionnel si Twitch)',required:false},
-                {name:'twitch',type:3,description:'Pseudo Twitch (optionnel)',required:false}
+            // Modération Twitch uniquement
+            ['addmodo','Ajouter un modérateur Twitch',[
+                {name:'utilisateur',type:3,description:'Nom d\'utilisateur Twitch',required:true}
             ]],
-            ['removemodo','Retirer un modérateur',[
-                {name:'utilisateur',type:6,description:'Utilisateur Discord (optionnel si Twitch)',required:false},
-                {name:'twitch',type:3,description:'Pseudo Twitch (optionnel)',required:false}
+            ['removemodo','Retirer un modérateur Twitch',[
+                {name:'utilisateur',type:3,description:'Nom d\'utilisateur Twitch',required:true}
             ]],
-            ['addvip','Ajouter un VIP',[
-                {name:'utilisateur',type:6,description:'Utilisateur Discord (optionnel si Twitch)',required:false},
-                {name:'twitch',type:3,description:'Pseudo Twitch (optionnel)',required:false}
+            ['addvip','Ajouter un VIP Twitch',[
+                {name:'utilisateur',type:3,description:'Nom d\'utilisateur Twitch',required:true}
             ]],
-            ['removevip','Retirer un VIP',[
-                {name:'utilisateur',type:6,description:'Utilisateur Discord (optionnel si Twitch)',required:false},
-                {name:'twitch',type:3,description:'Pseudo Twitch (optionnel)',required:false}
+            ['removevip','Retirer un VIP Twitch',[
+                {name:'utilisateur',type:3,description:'Nom d\'utilisateur Twitch',required:true}
             ]],
             ['ban','Bannir un utilisateur',[
                 {name:'utilisateur',type:6,description:'Utilisateur',required:true},
@@ -63,7 +59,9 @@ class CommandHandler {
             ['ping','Latence',[]],
             ['help','Aide',[]],
             ['clear','Supprimer des messages',[{name:'nombre',type:4,description:'1-100',required:true,min_value:1,max_value:100}]],
-            ['systemcheck','Vérifier systèmes',[]],
+            ['systemcheck','Vérifier l\'état du système',[]],
+            ['testtoken','Tester le token Twitch',[]],
+            ['reloadcommands','Recharger les commandes slash',[]],
             // Twitch (gestion Helix)
             ['twitchaddmod','Ajouter modérateur Twitch',[{name:'username',type:3,description:'Pseudo Twitch',required:true}]],
             ['twitchremovemod','Retirer modérateur Twitch',[{name:'username',type:3,description:'Pseudo Twitch',required:true}]],
@@ -109,6 +107,34 @@ class CommandHandler {
         console.log(`✅ ${this.commands.size} commandes slash enregistrées sur ${targetGuildId}`);
     }
 
+    async reloadCommands() {
+        console.log('🔄 Rechargement des commandes...');
+        
+        // 1. Redéfinir toutes les commandes
+        this.commands.clear();
+        this._defineCommands();
+        
+        // 2. Re-enregistrer sur la guild
+        const targetGuildId = this.config.staffGuildId || this.config.guildId;
+        const guild = this.client.guilds.cache.get(targetGuildId);
+        if (!guild) {
+            throw new Error('Guild introuvable pour enregistrer les commandes');
+        }
+        
+        await guild.commands.set([...this.commands.values()]);
+        console.log(`✅ ${this.commands.size} commandes slash rechargées sur ${targetGuildId}`);
+        
+        // 3. Optionnel : enregistrer globalement en fallback
+        try {
+            await this.client.application.commands.set([...this.commands.values()]);
+            console.log(`✅ ${this.commands.size} commandes slash enregistrées globalement (fallback)`);
+        } catch (error) {
+            console.warn('⚠️ Échec enregistrement global:', error.message);
+        }
+        
+        return this.commands.size;
+    }
+
     async handleInteraction(interaction) {
         if (!interaction.isChatInputCommand()) return;
         const cmd = interaction.commandName;
@@ -116,29 +142,37 @@ class CommandHandler {
         const voice = this.client.moduleManager?.getModule('voiceManager');
 
         try {
-            const modGroup = ['addmodo','removemodo','addvip','removevip',
-                'ban','timeout','search','listmods','listvips','listbans','userinfo',
+            // Commandes Twitch uniquement (plus de gestion Discord)
+            if (['addmodo','removemodo','addvip','removevip'].includes(cmd)) {
+                if (!this._twitchApiReady()) {
+                    return interaction.reply({ content:'❌ Twitch API non configurée', ephemeral:true });
+                }
+                
+                const twitchUser = interaction.options.getString('twitch') || interaction.options.getString('utilisateur');
+                if (!twitchUser) {
+                    return interaction.reply({ content:'❌ Veuillez spécifier un nom d\'utilisateur Twitch', ephemeral:true });
+                }
+                
+                await interaction.deferReply();
+                const isAdd = cmd.startsWith('add');
+                const isMod = cmd.includes('modo');
+                
+                try {
+                    await this._twitchAddRemove(isMod ? 'moderator' : 'vip', isAdd ? 'add' : 'remove', twitchUser);
+                    const action = isAdd ? 'ajouté' : 'retiré';
+                    const role = isMod ? 'modérateur' : 'VIP';
+                    const emoji = isMod ? '🛡️' : '⭐';
+                    return interaction.editReply(`${emoji} **${twitchUser}** ${action} comme ${role} sur Twitch`);
+                } catch (error) {
+                    console.error('❌ Erreur Twitch API:', error);
+                    return interaction.editReply(`❌ Erreur lors de la ${isAdd ? 'ajout' : 'suppression'} de ${twitchUser}`);
+                }
+            }
+
+            const modGroup = ['ban','timeout','search','listmods','listvips','listbans','userinfo',
                 // ajout
                 'mute','unmute','kick','discordban','unban','warn'
             ];
-
-            // --- Interception hybride Discord/Twitch pour add/remove modo/vip ---
-            if (['addmodo','removemodo','addvip','removevip'].includes(cmd)) {
-                const twitchUser = interaction.options.getString('twitch');
-                const discordUserProvided = interaction.options.getMember('utilisateur');
-                if (twitchUser && !discordUserProvided) {
-                    // Mode Twitch direct
-                    if (!this._twitchApiReady()) {
-                        return interaction.reply({ content:'❌ Twitch API non configurée', ephemeral:true });
-                    }
-                    await interaction.deferReply({ ephemeral:true });
-                    const isAdd = cmd.startsWith('add');
-                    const isMod = cmd.includes('modo');
-                    await this._twitchAddRemove(isMod?'moderator':'vip', isAdd?'add':'remove', twitchUser);
-                    return interaction.editReply(`${isMod?'🛡️':'⭐'} ${twitchUser} ${isAdd?(isMod?'ajouté modérateur':'ajouté VIP'):(isMod?'retiré modérateur':'retiré VIP')} (Twitch)`);
-                }
-                // Sinon on laisse la logique Discord (rôle) continuer plus bas
-            }
 
             if (modGroup.includes(cmd)) {
                 if (!moderation) return interaction.reply({ content:'❌ Module modération indisponible', ephemeral:true });
@@ -173,6 +207,8 @@ class CommandHandler {
                 case 'help': return this._help(interaction);
                 case 'clear': return this._clear(interaction);
                 case 'systemcheck': return this._systemCheck(interaction);
+                case 'testtoken': return this._testToken(interaction);
+                case 'reloadcommands': return this._reloadCommandsSlash(interaction);
                 default:
                     return interaction.reply({ content:'❌ Commande inconnue', ephemeral:true });
             }
@@ -187,6 +223,26 @@ class CommandHandler {
         if (!message.content.startsWith(this.prefix) || message.author.bot) return;
         const args = message.content.slice(this.prefix.length).trim().split(/\s+/);
         const cmd = args.shift()?.toLowerCase();
+        
+        // Commande spéciale de rechargement des commandes slash
+        if (cmd === 'reloadcommands') {
+            // Vérifier les permissions (admin ou owner)
+            if (!message.member.permissions.has('Administrator') && message.author.id !== message.guild.ownerId) {
+                return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+            }
+            
+            try {
+                const reactionMsg = await message.reply('🔄 Rechargement des commandes en cours...');
+                const commandCount = await this.reloadCommands();
+                await reactionMsg.edit(`✅ ${commandCount} commandes rechargées avec succès !`);
+            } catch (error) {
+                console.error('❌ Erreur rechargement commandes:', error);
+                await message.reply(`❌ Erreur lors du rechargement: ${error.message}`);
+            }
+            return;
+        }
+        
+        // Commandes vocales existantes
         if (['rename','limit','lock','unlock','transfer'].includes(cmd)) {
             const voice = this.client.moduleManager?.getModule('voiceManager');
             if (voice) return voice.handleTextCommand(message, cmd, args);
@@ -194,6 +250,7 @@ class CommandHandler {
     }
 
     async _botInfo(interaction) {
+        await interaction.deferReply(); // Éviter le timeout
         const embed = new EmbedBuilder()
             .setTitle('📊 Bot Info')
             .addFields(
@@ -203,7 +260,7 @@ class CommandHandler {
             )
             .setColor(0x00FF00)
             .setTimestamp();
-        return interaction.reply({ embeds:[embed] });
+        return interaction.editReply({ embeds:[embed] }); // Utiliser editReply après deferReply
     }
 
     async _streamInfo(interaction) {
@@ -216,19 +273,20 @@ class CommandHandler {
     }
 
     async _help(interaction) {
+        await interaction.deferReply(); // Éviter le timeout
         const embed = new EmbedBuilder()
             .setTitle('📋 Liste des commandes du bot')
-            .setDescription('Toutes les commandes disponibles organisées par catégorie :\n*(pour /addmodo /addvip etc : paramètre `twitch` -> agit sur Twitch, paramètre `utilisateur` -> agit sur Discord)*')
+            .setDescription('Toutes les commandes disponibles organisées par catégorie')
             .addFields(
                 {
-                    name: '🛡️ Modération Discord - Rôles',
+                    name: '� Modération Twitch',
                     value: [
-                        '`/addmodo <utilisateur>` - Ajouter le rôle Modérateur',
-                        '`/removemodo <utilisateur>` - Retirer le rôle Modérateur',
-                        '`/addvip <utilisateur>` - Ajouter le rôle VIP',
-                        '`/removevip <utilisateur>` - Retirer le rôle VIP',
-                        '`/listmods` - Lister tous les modérateurs',
-                        '`/listvips` - Lister tous les VIP'
+                        '`/addmodo <utilisateur>` - Ajouter un modérateur Twitch',
+                        '`/removemodo <utilisateur>` - Retirer un modérateur Twitch',
+                        '`/addvip <utilisateur>` - Ajouter un VIP Twitch',
+                        '`/removevip <utilisateur>` - Retirer un VIP Twitch',
+                        '`/listmods` - Lister tous les modérateurs Twitch',
+                        '`/listvips` - Lister tous les VIP Twitch'
                     ].join('\n')
                 },
                 {
@@ -250,10 +308,8 @@ class CommandHandler {
                     ].join('\n')
                 },
                 {
-                    name: '📺 Commandes Twitch',
+                    name: '📺 Autres commandes Twitch',
                     value: [
-                        '`/twitchaddmod <username>` - Ajouter un modérateur Twitch',
-                        '`/twitchremovemod <username>` - Retirer un modérateur Twitch',
                         '`/twitchban <username> [raison]` - Bannir sur Twitch',
                         '`/twitchtimeout <username> <durée> [raison]` - Timeout sur Twitch',
                         '`/twitchunban <username>` - Débannir sur Twitch',
@@ -292,12 +348,15 @@ class CommandHandler {
                     name: '🔧 Utilitaires',
                     value: [
                         '`/clear <nombre>` - Supprimer des messages (1-100)',
-                        '`/systemcheck` - Vérifier l\'état de tous les systèmes'
+                        '`/systemcheck` - Vérifier l\'état de tous les systèmes',
+                        '`/testtoken` - Tester la validité du token Twitch',
+                        '`/reloadcommands` - Recharger les commandes slash (Admin)',
+                        '`!reloadcommands` - Recharger les commandes (version message)'
                     ].join('\n')
                 }
             )
             .setColor(0x3498DB);
-        return interaction.reply({ embeds:[embed] }); // (plus d'ephemeral:true)
+        return interaction.editReply({ embeds:[embed] }); // Utiliser editReply après deferReply
     }
 
     async _clear(interaction) {
@@ -314,6 +373,7 @@ class CommandHandler {
     }
 
     async _systemCheck(interaction) {
+        await interaction.deferReply({ ephemeral: true }); // Éviter le timeout
         const mods = ['moderationManager','voiceManager','welcomeManager'];
         const embed = new EmbedBuilder().setTitle('🔍 System Check').setColor(0x3498DB);
         for (const m of mods) {
@@ -325,9 +385,61 @@ class CommandHandler {
         embed.addFields({ name:'twitchBridge', value: twitchBridge?.getStatus?.() || '🔴', inline:true });
         embed.addFields(
             { name:'Ping', value:`${this.client.ws.ping}ms`, inline:true },
-            { name:'Guild', value:this.config.guildId ? '🟢' : '🔴', inline:true }
+            { name:'Guild', value:this.config.guildId ? '🟢' : '🔴', inline:true },
+            { name:'Commandes définies', value:`${this.commands.size}`, inline:true },
+            { name:'testtoken défini', value: this.commands.has('testtoken') ? '🟢' : '🔴', inline:true }
         );
-        return interaction.reply({ embeds:[embed], ephemeral:true });
+        return interaction.editReply({ embeds:[embed] }); // Utiliser editReply après deferReply
+    }
+
+    async _testToken(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+        
+        const twitchBridge = this.client.moduleManager?.getModule('twitchBridge');
+        if (!twitchBridge) {
+            return interaction.editReply('❌ Module TwitchBridge non disponible');
+        }
+
+        try {
+            const tokenInfo = await twitchBridge.testTwitchToken();
+            
+            if (!tokenInfo.valid) {
+                return interaction.editReply(`❌ Token invalide: ${tokenInfo.error}`);
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔑 Test du Token Twitch')
+                .addFields(
+                    { name: 'Statut', value: '✅ Valide', inline: true },
+                    { name: 'Login', value: tokenInfo.login, inline: true },
+                    { name: 'User ID', value: tokenInfo.userId, inline: true },
+                    { name: 'Client ID', value: tokenInfo.clientId, inline: false },
+                    { name: 'Scopes', value: tokenInfo.scopes.join(', ') || 'Aucun', inline: false }
+                )
+                .setColor(0x00FF00);
+
+            return interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('❌ Erreur test token:', error);
+            return interaction.editReply(`❌ Erreur lors du test: ${error.message}`);
+        }
+    }
+
+    async _reloadCommandsSlash(interaction) {
+        // Vérifier les permissions (admin ou owner)
+        if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== interaction.guild.ownerId) {
+            return interaction.reply({ content: '❌ Vous devez être administrateur pour utiliser cette commande.', ephemeral: true });
+        }
+        
+        await interaction.deferReply({ ephemeral: true });
+        
+        try {
+            const commandCount = await this.reloadCommands();
+            return interaction.editReply(`✅ ${commandCount} commandes rechargées avec succès !`);
+        } catch (error) {
+            console.error('❌ Erreur rechargement commandes:', error);
+            return interaction.editReply(`❌ Erreur lors du rechargement: ${error.message}`);
+        }
     }
 
     // Fonction utilitaire pour les commandes welcome

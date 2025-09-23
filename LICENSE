@@ -1,36 +1,120 @@
-(Privé) – Aucune licence publique. Ne pas redistribuer.
+====================================================================
+LICENCE D'UTILISATION LIMITÉE (v0.1) – BOT MODÈLE DISCORD/TWITCH
+LIMITED USE LICENSE (v0.1) – DISCORD/TWITCH BOT TEMPLATE
+====================================================================
+Auteur / Author: Noan Bregeon ("Auteur")
+Date version: 2025-09-23
 
-1. Objet
-Ce logiciel (le “Logiciel”) est fourni uniquement pour l’usage interne Discord/Twitch du propriétaire sur les espaces autorisés.
+--------------------------------------------------------------------
+0. AVERTISSEMENT / DISCLAIMER
+Ce document n’est pas un conseil juridique. Vous reconnaissez que l’Auteur conserve tous les droits d’auteur. / This is not legal advice. The Author retains all copyrights.
+--------------------------------------------------------------------
 
-2. Propriété
-Tout le code, scripts, configurations, structures et ressources associées restent la propriété exclusive de l’auteur. Aucun droit, licence implicite ou cession n’est accordé.
+1. OBJET / PURPOSE
+FR: Le présent document concède une licence d’usage strictement limitée d’un bot Discord/Twitch (le « Logiciel ») à un utilisateur spécifique (le « Client Actuel ») pour exploitation interne.
+EN: This document grants a strictly limited license to use a Discord/Twitch bot (the "Software") to a specific user (the "Current Client") for internal operation.
 
-3. Licence d’usage limitée
-Autorisé : exécuter le Logiciel sur les serveurs/chaîne expressément approuvés par le propriétaire.
-Interdit sans accord écrit préalable :
-- Reproduction, redistribution, publication, vente, location, hébergement pour des tiers
-- Mise à disposition publique ou sous-licence
-- Rétro‑ingénierie, décompilation, extraction partielle
-- Modification non autorisée
-- Fournir l’accès au code source ou aux fichiers internes à un tiers
+2. PROPRIÉTÉ / OWNERSHIP
+FR: Le Logiciel, son code, sa structure, scripts, ressources et dérivés restent la propriété exclusive de l’Auteur. Aucune cession de droits patrimoniaux n’est effectuée.
+EN: The Software, its code, structure, scripts, resources and derivatives remain the exclusive property of the Author. No transfer of economic rights is made.
 
-4. Confidentialité
-Le code source, sa structure et les éventuels schémas d’architecture sont confidentiels.
+3. CHAMP D’USAGE AUTORISÉ / SCOPE OF AUTHORIZED USE
+FR: Autorisé uniquement sur les serveurs Discord suivants et la chaîne Twitch associée:
+	- Serveur communautaire (ID): 644968161006845952
+	- Serveur staff (ID): 862008770108719165
+	- Chaîne Twitch: mrlyu_
+EN: Authorized only on these Discord servers and Twitch channel:
+	- Community server (ID): 644968161006845952
+	- Staff server (ID): 862008770108719165
+	- Twitch channel: mrlyu_
 
-5. Sécurité
-Toute compromission (fuite de tokens / accès non autorisé) doit être signalée immédiatement. Rotation des clés à la discrétion du propriétaire.
+FR: Toute exécution sur un autre serveur ou autre chaîne nécessite accord écrit préalable de l’Auteur.
+EN: Any execution on another server or channel requires prior written approval by the Author.
 
-6. Garantie
-Le Logiciel est fourni “TEL QUEL” sans garantie, expresse ou implicite. Aucune responsabilité pour pertes de données, interruption de service, dommages indirects.
+4. DROITS ACCORDÉS / RIGHTS GRANTED
+FR: Droit d’exécuter, configurer (fichiers .env, JSON, variables), démarrer/arrêter le bot. Pas de droit de modifier le code source ni d’en créer des œuvres dérivées sans accord.
+EN: Right to run, configure (.env, JSON, variables), start/stop the bot. No right to modify source code or create derivative works without explicit approval.
 
-7. Résiliation
-En cas de violation de ces clauses, toute autorisation d’usage cesse immédiatement. Le propriétaire peut révoquer l’accès à tout moment sans justification.
+5. RESTRICTIONS / RESTRICTIONS
+FR: Interdits sans autorisation écrite: (a) redistribution, publication, sous‑licence, vente, location; (b) hébergement pour des tiers; (c) ingénierie inverse, décompilation; (d) extraction partielle de modules réutilisables; (e) ajout de fonctionnalités pour revendre; (f) transfert de la licence.
+EN: Prohibited without written authorization: (a) redistribution, publication, sublicensing, sale, rental; (b) hosting for third parties; (c) reverse engineering/decompilation; (d) partial extraction of reusable modules; (e) adding features for resale; (f) license transfer.
 
-8. Droit applicable
-Interprétation selon la juridiction du propriétaire sauf dispositions impératives contraires.
+6. CONFIGURATION VS CODE / CONFIG VS CODE
+FR: Le Client peut modifier uniquement les paramètres d’exploitation (config, clés, paramètres fonctionnels). Toute modification du code source nécessite approbation.
+EN: The Client may only adjust runtime parameters (config, keys, functional settings). Source edits require approval.
 
-Contact autorisation / demandes :
-noanbregeon@gmail.com
+7. MAINTENANCE / MAINTENANCE
+FR: Aucune obligation de support permanent. Interventions « best effort ». Un futur contrat séparé peut définir un SLA.
+EN: No permanent support obligation. Assistance is best‑effort. A future separate maintenance agreement may define an SLA.
 
-Fin du document.
+8. ÉVOLUTION COMMERCIALE / FUTURE COMMERCIAL USE
+FR: La licence actuelle est gratuite pour le Client Actuel. Pour tout autre client futur ou extension fonctionnelle, une licence payante pourra être exigée sans effet rétroactif.
+EN: Current Client’s license is free. Future clients or expanded functionality may require a paid license with no retroactive impact.
+
+9. RÉVOCATION / TERMINATION
+FR: Licence perpétuelle sous condition de respect. Révocable en cas de: (a) violation présente licence; (b) usage hors périmètre; (c) contournement restrictions; (d) violation des ToS Discord/Twitch; (e) atteinte sécurité (ex: exposition tokens) non corrigée.
+EN: Perpetual subject to compliance. Revocable upon: (a) breach; (b) out‑of‑scope use; (c) bypassing restrictions; (d) Discord/Twitch ToS violation; (e) unremediated security exposure.
+
+10. DONNÉES TRAITÉES / DATA PROCESSED
+FR: Catégories collectées ou stockées localement:
+	(1) IDs Discord (serveurs, salons, rôles, utilisateurs) – OUI
+	(2) Pseudos / tags / affichages – OUI
+	(3) Historique modération Twitch (et futur Discord) – OUI
+	(4) Logs événements (join/leave, états vocaux) – OUI
+	(5) Statistiques vocales (durées sessions, cumul) – OUI (purge mensuelle des temps vocaux)
+	(6) Données Twitch (logins, listes mods/VIPs) – OUI
+	(7) Adresses IP – NON
+	(8) Avatars / images : uniquement références (URLs) – OUI (référence, pas copie persistante massives)
+	(9) Fichiers/attachments (hors avatar bot) – NON
+EN: Collected/stored locally categories:
+	(1) Discord IDs (servers, channels, roles, users) – YES
+	(2) Usernames / tags / display names – YES
+	(3) Twitch moderation history (and upcoming Discord) – YES
+	(4) Event logs (join/leave, voice states) – YES
+	(5) Voice stats (session durations, totals) – YES (monthly purge of voice time)
+	(6) Twitch data (logins, mod/VIP lists) – YES
+	(7) IP addresses – NO
+	(8) Avatars/images: references only – YES (reference only, not bulk storage)
+	(9) Files/attachments (except bot avatar) – NO
+
+FR: Purge mensuelle des durées vocales. Rotation manuelle des tokens Twitch ~60 jours. Pas de partage à des tiers hors hébergeur technique standard. Stockage local uniquement.
+EN: Monthly purge of voice duration data. Manual Twitch token rotation ~60 days. No third‑party sharing beyond standard hosting. Local storage only.
+
+11. SÉCURITÉ / SECURITY
+FR: Le Client doit protéger les tokens (.env). En cas de fuite: notification immédiate + rotation.
+EN: Client must protect tokens (.env). On leak: immediate notice + rotation.
+
+12. CONFORMITÉ DISCORD/TWITCH / PLATFORM COMPLIANCE
+FR: Toute fonctionnalité contraire aux ToS officiels peut être désactivée par l’Auteur.
+EN: Any feature conflicting with official ToS may be disabled by the Author.
+
+13. GARANTIE / WARRANTY
+FR: Logiciel fourni « EN L’ÉTAT » sans garantie d’adéquation, disponibilité ou absence d’erreurs.
+EN: Software is provided "AS IS" without warranties of fitness, availability, or error‑free operation.
+
+14. LIMITATION DE RESPONSABILITÉ / LIMITATION OF LIABILITY
+FR: Responsabilité totale cumulée de l’Auteur limitée au plus élevé de (a) 0 € (licence gratuite actuelle) ou (b) montants effectivement payés sur les 12 derniers mois (si licence future payante). Aucune responsabilité pour pertes indirectes, perte de revenus, réputation.
+EN: Aggregate liability limited to the greater of (a) €0 (current free license) or (b) fees actually paid in last 12 months (if future paid). No liability for indirect, consequential, revenue or reputation loss.
+
+15. FORCE MAJEURE / FORCE MAJEURE
+FR / EN: Aucune responsabilité en cas d’événements hors contrôle raisonnable (pannes infra, APIs tierces, attaques, catastrophes, obligations légales).
+
+16. MISES À JOUR / UPDATES
+FR: L’Auteur peut publier de nouvelles versions. Le Client peut rester sur une version antérieure sauf correctif critique sécurité.
+EN: Author may release new versions. Client may stay on older version unless critical security fix required.
+
+17. DROIT APPLICABLE & LANGUE / GOVERNING LAW & LANGUAGE
+FR: Droit français. Version française prévaut en cas de divergence. Tribunal compétent: juridiction du domicile de l’Auteur, sous réserve dispositions légales impératives.
+EN: Governed by French law. French version prevails in case of discrepancy. Competent court: Author’s domicile jurisdiction, subject to mandatory law.
+
+18. CLIENTS FUTURS / FUTURE CLIENTS
+FR: Tout nouveau client devra conclure une licence distincte (possiblement payante). Cette licence ne crée aucun droit pour des tiers.
+EN: Any new client must enter a separate (possibly paid) license. This license creates no third‑party rights.
+
+19. CONTACT / CONTACT
+FR: Demandes, extension d’usage, incidents sécurité: noanbregeon@gmail.com
+EN: Requests, scope extension, security incidents: noanbregeon@gmail.com
+
+--------------------------------------------------------------------
+FIN VERSION 0.1 – END OF VERSION 0.1
+--------------------------------------------------------------------

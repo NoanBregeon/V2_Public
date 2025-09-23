@@ -22,10 +22,6 @@ class ModerationManager {
 
     async handleSlashCommand(interaction, command) {
         switch (command) {
-            case 'addmodo':
-            case 'removemodo': return this._modRole(interaction, command);
-            case 'addvip':
-            case 'removevip': return this._vipRole(interaction, command);
             case 'ban':
             case 'discordban': return this._ban(interaction); // alias
             case 'timeout':
@@ -242,14 +238,34 @@ class ModerationManager {
     }
 
     async _list(interaction, roleName, emoji) {
-        const role = interaction.guild.roles.cache.find(r => r.name === roleName);
-        if (!role) return interaction.reply({ content:`❌ Rôle ${roleName} inexistant`, ephemeral:true });
-        if (role.members.size === 0) return interaction.reply({ content:`ℹ️ Aucun ${roleName}`, ephemeral:true });
-        const emb = new EmbedBuilder()
-            .setTitle(`${emoji} ${roleName}s (${role.members.size})`)
-            .setDescription(role.members.map(m=>m.user.tag).join('\n'))
-            .setColor(roleName==='VIP'?0xFFD700:0xFF6666);
-        return interaction.reply({ embeds:[emb], ephemeral:true });
+        // Nouvelle logique : afficher les mods/VIPs Twitch au lieu des rôles Discord
+        await interaction.deferReply(); // Pas éphémère, visible par tous
+        
+        const twitchBridge = this.client.moduleManager?.getModule('twitchBridge');
+        if (!twitchBridge) {
+            return interaction.editReply('❌ Module Twitch non disponible');
+        }
+        
+        try {
+            const isMod = roleName === 'Modérateur';
+            const endpoint = isMod ? 'moderators' : 'vips';
+            const list = await twitchBridge.getTwitchList(endpoint);
+            
+            if (!list || list.length === 0) {
+                return interaction.editReply(`ℹ️ Aucun ${roleName} Twitch trouvé`);
+            }
+            
+            const emb = new EmbedBuilder()
+                .setTitle(`${emoji} ${roleName}s Twitch (${list.length})`)
+                .setDescription(list.map(user => `• ${user.user_name || user.user_login}`).join('\n'))
+                .setColor(roleName === 'VIP' ? 0xFFD700 : 0xFF6666)
+                .setFooter({ text: `Données Twitch • ${new Date().toLocaleString('fr-FR')}` });
+            
+            return interaction.editReply({ embeds: [emb] });
+        } catch (error) {
+            console.error('❌ Erreur récupération Twitch:', error);
+            return interaction.editReply('❌ Erreur lors de la récupération des données Twitch');
+        }
     }
 
     async _listBans(interaction) {

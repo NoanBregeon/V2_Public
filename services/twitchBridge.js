@@ -5,6 +5,11 @@ try {
     console.warn('⚠️ tmi.js non installé, TwitchBridge sera désactivé (npm install tmi.js)');
 }
 
+// Fallback fetch pour Node < 18
+if (typeof fetch !== 'function') {
+    global.fetch = (...args) => import('node-fetch').then(m => m.default(...args));
+}
+
 class TwitchBridge {
     constructor(client, config) {
         this.discordClient = client;
@@ -146,6 +151,107 @@ class TwitchBridge {
 
     getStatus() {
         return this.enabled ? '🟢' : '🔴';
+    }
+
+    // Méthode pour tester les permissions du token
+    async testTwitchToken() {
+        try {
+            const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+                headers: {
+                    'Authorization': `Bearer ${process.env.TWITCH_USER_TOKEN}`
+                }
+            });
+
+            if (!response.ok) {
+                return { valid: false, error: `HTTP ${response.status}` };
+            }
+
+            const data = await response.json();
+            return {
+                valid: true,
+                login: data.login,
+                userId: data.user_id,
+                clientId: data.client_id,
+                scopes: data.scopes
+            };
+        } catch (error) {
+            return { valid: false, error: error.message };
+        }
+    }
+
+    // Nouvelle méthode pour récupérer les listes Twitch
+    async getTwitchList(type) {
+        if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_USER_TOKEN || !process.env.STREAMER_USERNAME) {
+            throw new Error('Configuration Twitch API manquante');
+        }
+
+        const broadcasterUsername = process.env.STREAMER_USERNAME;
+        
+        try {
+            // 1. Vérifier la validité du token
+            const tokenValidation = await fetch('https://id.twitch.tv/oauth2/validate', {
+                headers: {
+                    'Authorization': `Bearer ${process.env.TWITCH_USER_TOKEN}`
+                }
+            });
+
+            if (!tokenValidation.ok) {
+                throw new Error(`Token invalide ou expiré: ${tokenValidation.status}`);
+            }
+
+            const tokenData = await tokenValidation.json();
+            console.log(`🔑 Token valide pour: ${tokenData.login}, Scopes: ${tokenData.scopes.join(', ')}`);
+
+            // 2. Récupérer l'ID du broadcaster
+            // 2. Récupérer l'ID du broadcaster
+            const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${broadcasterUsername}`, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_USER_TOKEN}`
+                }
+            });
+
+            if (!userResponse.ok) {
+                throw new Error(`Erreur API Twitch users: ${userResponse.status}`);
+            }
+
+            const userData = await userResponse.json();
+            if (!userData.data || userData.data.length === 0) {
+                throw new Error(`Utilisateur ${broadcasterUsername} non trouvé`);
+            }
+
+            const broadcasterId = userData.data[0].id;
+
+            // 3. Récupérer la liste des mods ou VIPs
+            let apiUrl;
+            if (type === 'moderators') {
+                apiUrl = `https://api.twitch.tv/helix/moderation/moderators?broadcaster_id=${broadcasterId}`;
+            } else if (type === 'vips') {
+                apiUrl = `https://api.twitch.tv/helix/channels/vips?broadcaster_id=${broadcasterId}`;
+            } else {
+                throw new Error(`Type ${type} non supporté`);
+            }
+
+            const listResponse = await fetch(apiUrl, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_USER_TOKEN}`
+                }
+            });
+
+            if (!listResponse.ok) {
+                // Ajouter plus de détails sur l'erreur
+                const errorText = await listResponse.text();
+                throw new Error(`Erreur API Twitch ${type}: ${listResponse.status} - ${errorText}`);
+            }
+
+            const listData = await listResponse.json();
+            return listData.data || [];
+
+        } catch (error) {
+            console.error(`❌ Erreur getTwitchList(${type}):`, error);
+            throw error;
+        }
     }
 
     async destroy() {
