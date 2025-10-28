@@ -3,10 +3,10 @@
 ## URLs à configurer (optionnel) :
 
 **Terms of Service URL:**
-https://github.com/MrLyu-/bot-discord-v2/blob/main/TERMS.md
+https://github.com/NoanBregeon/V2_Public/blob/main/TERMS.md
 
 **Privacy Policy URL:**
-https://github.com/MrLyu-/bot-discord-v2/blob/main/PRIVACY.md
+https://github.com/NoanBregeon/V2_Public/blob/main/PRIVACY.md
 
 ## Interactions Endpoint URL :
 - Laisser VIDE pour utiliser le Gateway (recommandé)
