@@ -13,7 +13,7 @@ console.log('🚀 Bot Discord V2 - Démarrage...');
 // === CONFIGURATION ===
 const config = {
     discordToken: process.env.DISCORD_TOKEN,
-    guildId: process.env.GUILD_ID,
+    guildId: process.env.GUILD_ID, // Supprimer le fallback hardcodé
     createVoiceChannelId: process.env.CREATE_VOICE_CHANNEL_ID,
     welcomeChannelId: process.env.WELCOME_CHANNEL_ID,
     logsChannelId: process.env.LOGS_CHANNEL_ID,
@@ -22,6 +22,7 @@ const config = {
     liveNotificationsChannelId: process.env.LIVE_NOTIFICATIONS_CHANNEL_ID,
     voiceInstructionsChannelId: process.env.VOICE_INSTRUCTIONS_CHANNEL_ID,
     voiceLogsChannelId: process.env.VOICE_LOGS_CHANNEL_ID,
+    voiceCategoryId: process.env.VOICE_CATEGORY_ID, // Catégorie des salons vocaux temporaires
     // Rôles
     vipRoleId: process.env.VIP_ROLE_ID,
     moderatorRoleId: process.env.MODERATOR_ROLE_ID,
@@ -32,6 +33,10 @@ const config = {
     // Twitch Helix (ajout)
     twitchClientId: process.env.TWITCH_CLIENT_ID,
     twitchUserToken: process.env.TWITCH_USER_TOKEN,
+    // Twitch Chat Relay
+    twitchRelayChannelId: process.env.TWITCH_RELAY_CHANNEL_ID,
+    twitchBotUsername: process.env.TWITCH_BOT_USERNAME,
+    twitchBotToken: process.env.TWITCH_BOT_TOKEN,
     // Multi-guild (optionnel)
     staffGuildId: process.env.STAFF_GUILD_ID,
     communityGuildId: process.env.COMMUNITY_GUILD_ID
@@ -101,7 +106,8 @@ class ModuleManager {
             'commandHandler',
             'voiceManager', 
             'moderationManager',
-            'welcomeManager'
+            'welcomeManager',
+            'interactionHandler' // Ajouté pour les boutons
         ];
 
         console.log('🔄 Chargement des modules...');
@@ -130,6 +136,47 @@ async function bootstrap() {
     client.moduleManager = moduleManager;
 
     await moduleManager.loadAllModules();
+
+    // === NETTOYAGE DES COMMANDES AU DÉMARRAGE (optionnel) ===
+    if (process.env.CLEAN_COMMANDS_ON_START === 'true') {
+        const commandHandler = moduleManager.getModule('commandHandler');
+        if (commandHandler) {
+            console.log('🧹 Nettoyage des commandes au démarrage...');
+            await commandHandler.cleanAllCommands();
+            // Attendre un peu puis réenregistrer
+            setTimeout(async () => {
+                await commandHandler.registerSlashCommands();
+            }, 3000);
+        }
+    } else {
+        // === FORCER LE RÉENREGISTREMENT DES COMMANDES ===
+        const commandHandler = moduleManager.getModule('commandHandler');
+        if (commandHandler) {
+            console.log('🔄 Réenregistrement forcé des commandes...');
+            await commandHandler.registerSlashCommands();
+        }
+    }
+
+    // === INTÉGRATION TWITCH BRIDGE ===
+    try {
+        const TwitchBridge = require('./services/twitchBridge');
+        const twitchBridge = new TwitchBridge(client, config);
+        await twitchBridge.initialize();
+        moduleManager.registerModule('twitchBridge', twitchBridge);
+        console.log('✅ Module twitchBridge chargé');
+    } catch (e) {
+        console.error('❌ Erreur initialisation twitchBridge:', e);
+    }
+
+    // === TESTS AUTOMATIQUES (optionnel) ===
+    if (process.env.RUN_TESTS_ON_START === 'true') {
+        const TestRunner = require('./utils/testRunner');
+        const testRunner = new TestRunner(client);
+        await testRunner.runAllTests();
+        
+        const healthScore = testRunner.getHealthScore();
+        console.log(`🏥 Score de santé du bot: ${healthScore}%`);
+    }
 
     client.user.setActivity('Système modulaire', { type: ActivityType.Watching });
     console.log('🎯 Initialisation terminée');
@@ -166,6 +213,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+// ✅ SEUL gestionnaire voiceStateUpdate à conserver
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const voiceManager = moduleManager?.getModule('voiceManager');
     if (voiceManager) {
@@ -191,22 +239,3 @@ process.on('uncaughtException', (error) => {
 
 // === DÉMARRAGE ===
 client.login(config.discordToken);
-
-// === AJOUT TWITCH BRIDGE (propre) ===
-const TwitchBridge = require('./services/twitchBridge');
-
-client.once('ready', async () => {
-    try {
-        if (!client.moduleManager) return;
-        const twitchBridge = new TwitchBridge(client, { twitch: {} });
-        await twitchBridge.initialize();
-        client.moduleManager.registerModule('twitchBridge', twitchBridge);
-        console.log('✅ Module twitchBridge chargé');
-    } catch (e) {
-        console.error('❌ Erreur initialisation twitchBridge:', e);
-    }
-});
-
-// (Optionnel) après bootstrap: choisir la guild pour register si staff présente
-// Dans bootstrap() ou _registerSlash() côté commandHandler, tu peux utiliser:
-// const targetGuildId = this.config.staffGuildId || this.config.guildId;

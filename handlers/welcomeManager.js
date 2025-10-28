@@ -13,13 +13,8 @@ class WelcomeManager {
     }
 
     async initialize() {
-        // Événements de membre
-        this.client.on('guildMemberAdd', this.handleMemberJoin.bind(this));
-        this.client.on('guildMemberRemove', this.handleMemberLeave.bind(this));
-        
-        // Charger les données
+        // Pas d'événements ici - ils sont gérés dans index.js
         await this.loadData();
-        
         console.log('✅ WelcomeManager initialisé');
     }
 
@@ -28,10 +23,15 @@ class WelcomeManager {
         if (member.user.bot) return;
         
         try {
-            await this.sendWelcomeMessage(member);
+            // DÉSACTIVER l'embed de bienvenue avec commandes
+            // await this.sendWelcomeMessage(member);
+            
+            // Garder seulement l'attribution du rôle
             await this.assignDefaultRole(member);
+            
+            console.log(`✅ Nouveau membre traité sans embed: ${member.user.tag}`);
         } catch (error) {
-            console.error('❌ Erreur accueil nouveau membre:', error);
+            console.error('❌ Erreur gestion nouveau membre:', error);
         }
     }
 
@@ -40,9 +40,12 @@ class WelcomeManager {
         if (member.user.bot) return;
         
         try {
-            await this.sendLeaveMessage(member);
+            // DÉSACTIVER l'embed de départ
+            // await this.sendLeaveMessage(member);
+            
+            console.log(`👋 Membre parti (sans embed): ${member.user.tag}`);
         } catch (error) {
-            console.error('❌ Erreur départ membre:', error);
+            console.error('❌ Erreur gestion départ membre:', error);
         }
     }
 
