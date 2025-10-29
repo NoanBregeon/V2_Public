@@ -401,3 +401,172 @@ Merci à tous les contributeurs et à la communauté Discord.js !
 **Bot développé avec ❤️ par Fury Nocturne 2.0**
 
 *Dernière mise à jour : Décembre 2024*
+
+---
+
+## 🚀 **Déploiement VPS avec FileZilla**
+
+### **📁 Fichiers/Dossiers à Transférer**
+
+**✅ OBLIGATOIRES :**
+```
+📁 V2_Public/
+├── 📄 index.js                    # Point d'entrée principal
+├── 📄 package.json                # Dépendances Node.js
+├── 📄 package-lock.json           # Versions exactes des dépendances
+├── 📄 ecosystem.config.js         # Configuration PM2
+├── 📄 .env                        # Variables d'environnement (À CONFIGURER)
+├── 📁 commands/                   # Toutes les commandes slash
+│   ├── help.js
+│   ├── voice.js  
+│   ├── test.js
+│   ├── admin.js
+│   ├── antispam.js
+│   └── twitch-commands.js
+├── 📁 handlers/                   # Gestionnaires principaux
+│   ├── commandHandler.js
+│   ├── voiceManager.js
+│   ├── moderationManager.js
+│   ├── welcomeManager.js
+│   ├── interactionHandler.js
+│   └── antiSpamManager.js
+├── 📁 services/                   # Services externes
+│   └── twitchBridge.js
+├── 📁 utils/                      # Utilitaires
+│   ├── permissions.js
+│   ├── testRunner.js
+│   └── logger.js
+└── 📁 data/                       # Dossier vide (créé automatiquement)
+```
+
+**❌ À NE PAS TRANSFÉRER :**
+```
+❌ node_modules/          # Se réinstalle avec npm install
+❌ logs/                  # Créé automatiquement par le bot
+❌ .git/                  # Dossier Git (inutile en production)
+❌ README.md              # Optionnel (documentation)
+❌ TERMS.md               # Optionnel
+❌ PRIVACY.md             # Optionnel
+❌ .gitignore             # Inutile en production
+```
+
+### **🔧 Procédure de Déploiement**
+
+#### **1. Préparation Locale**
+```bash
+# Sur votre PC, créer un dossier temporaire
+mkdir bot-deploy
+cd bot-deploy
+
+# Copier SEULEMENT les fichiers nécessaires
+cp -r V2_Public/commands ./
+cp -r V2_Public/handlers ./
+cp -r V2_Public/services ./
+cp -r V2_Public/utils ./
+cp V2_Public/index.js ./
+cp V2_Public/package.json ./
+cp V2_Public/ecosystem.config.js ./
+cp V2_Public/.env ./
+
+# Créer le dossier data vide
+mkdir data
+```
+
+#### **2. Configuration .env pour VPS**
+```env
+# Discord
+DISCORD_TOKEN=MTM5MjU5NzIzMjc5NjMwNzU5Nw.GtuHoP.ouUhC5nUzhEp7vEugzhEFdS_0fdpbEqxA7CMBo
+DISCORD_CLIENT_ID=1392597232796307597
+GUILD_ID=978265038148218881
+
+# Twitch
+TWITCH_CLIENT_ID=gp762nuuoqcoxypju8c569th9wz7q5
+TWITCH_USER_TOKEN=2k30i48qbw549x6onb2aunga58xffe
+STREAMER_USERNAME=mrlyu_
+TWITCH_BOT_USERNAME=mrlyu_
+TWITCH_BOT_TOKEN=oauth:xeibgz8tclgmmzfwjjij4m6smb07lp
+
+# Canaux Discord (VOS VRAIS IDs)
+LIVE_NOTIFICATIONS_CHANNEL_ID=1417967648314232974
+VOICE_INSTRUCTIONS_CHANNEL_ID=1417976915909935134
+VOICE_LOGS_CHANNEL_ID=1417967568391503892
+VOICE_CATEGORY_ID=1422272483465363526
+CREATE_VOICE_CHANNEL_ID=1417967811137110178
+MODERATION_CHANNEL_ID=1417967648314232974
+
+# Rôles (VOS VRAIS IDs)
+VIP_ROLE_ID=1417968880181186761
+MODERATOR_ROLE_ID=1417968933050253473
+DEFAULT_ROLE_ID=1418002113174310962
+ADMIN_ROLE_ID=998326620370763786
+
+# Production
+NODE_ENV=production
+DEBUG=false
+LOG_LEVEL=INFO
+```
+
+#### **3. Transfer FileZilla**
+1. **Connexion VPS** - Host, Username, Password
+2. **Dossier cible** - `/home/votre-user/bot-discord/` ou `/var/www/bot/`
+3. **Upload** - Glisser-déposer tous les fichiers/dossiers
+
+#### **4. Installation sur VPS**
+```bash
+# SSH dans votre VPS
+ssh user@votre-vps-ip
+
+# Aller dans le dossier du bot
+cd /home/user/bot-discord/
+
+# Installer Node.js 18+ si pas déjà fait
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Installer les dépendances
+npm install
+
+# Installer PM2 globalement
+sudo npm install -g pm2
+
+# Démarrer le bot
+pm2 start ecosystem.config.js
+
+# Voir les logs
+pm2 logs bot-discord-v2
+
+# Sauvegarder la config PM2
+pm2 save
+pm2 startup
+```
+
+### **📋 Checklist de Déploiement**
+
+**Avant Transfer :**
+- [ ] ✅ Tous les fichiers .js sont présents
+- [ ] ✅ .env configuré avec VOS IDs Discord/Twitch
+- [ ] ✅ package.json contient toutes les dépendances
+- [ ] ✅ Tokens Discord/Twitch valides
+
+**Après Transfer :**
+- [ ] ✅ `npm install` sans erreurs
+- [ ] ✅ `node index.js` démarre sans crash
+- [ ] ✅ Bot apparaît en ligne sur Discord
+- [ ] ✅ `/test modules` fonctionne
+- [ ] ✅ PM2 démarre correctement
+
+### **⚡ Structure Finale sur VPS**
+```
+/home/user/bot-discord/
+├── commands/
+├── handlers/
+├── services/
+├── utils/
+├── data/              # Créé automatiquement
+├── logs/              # Créé automatiquement  
+├── node_modules/      # Créé par npm install
+├── index.js
+├── package.json
+├── ecosystem.config.js
+└── .env
+```
