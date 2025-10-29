@@ -163,10 +163,17 @@ class CommandHandler {
         
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
-            const command = require(filePath);
+            const commandModule = require(filePath);
             
-            if ('data' in command && 'execute' in command) {
-                this.commands.set(command.data.name, command);
+            // Support pour les fichiers exportant un tableau de commandes
+            if (Array.isArray(commandModule)) {
+                for (const command of commandModule) {
+                    if ('data' in command && 'execute' in command) {
+                        this.commands.set(command.data.name, command);
+                    }
+                }
+            } else if ('data' in commandModule && 'execute' in commandModule) {
+                this.commands.set(commandModule.data.name, commandModule);
             }
         }
         

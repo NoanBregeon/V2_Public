@@ -273,6 +273,35 @@ class TwitchBridge {
         this.lastStreamId = null;
     }
 
+    // Méthode utilitaire pour récupérer l'ID du broadcaster
+    async getBroadcasterId() {
+        if (this.broadcasterId) {
+            return this.broadcasterId;
+        }
+        
+        try {
+            const response = await axios.get('https://api.twitch.tv/helix/users', {
+                headers: {
+                    'Client-ID': this.config.twitchClientId,
+                    'Authorization': `Bearer ${this.config.twitchUserToken}`
+                },
+                params: {
+                    login: this.config.streamerUsername
+                }
+            });
+            
+            if (response.data.data.length > 0) {
+                this.broadcasterId = response.data.data[0].id;
+                return this.broadcasterId;
+            }
+            
+            throw new Error('Broadcaster ID introuvable');
+        } catch (error) {
+            console.error('❌ Erreur récupération broadcaster ID:', error);
+            throw error;
+        }
+    }
+
     /**
      * Gestion sécurisée des commandes VIP
      * RÉSERVÉ AUX ADMINISTRATEURS UNIQUEMENT
