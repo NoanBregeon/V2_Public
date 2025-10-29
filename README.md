@@ -32,7 +32,6 @@
 - **Hot-reload** - Rechargement des modules sans redémarrage
 - **Système de tests** - `/test` pour vérifier chaque composant
 - **Gestion d'erreurs** - Retry automatique + logs + notifications admin
-- **Multi-guild** - Support serveurs multiples
 
 ---
 
@@ -265,6 +264,76 @@ RUN_TESTS_ON_START=false
 - 🎤 Salons vocaux actifs
 - 🎮 Statut Twitch
 - 👥 Utilisateurs connectés
+
+---
+
+## 🛡️ **Anti-Spam Intelligent** *(Nouveau)*
+- **Détection multi-critères** - Messages identiques, flood, mentions excessives
+- **Sanctions graduées** - Mute progressif puis ban automatique
+- **Patterns suspects** - Liens malveillants, spam d'emojis, contenu indésirable
+- **Exclusions intelligentes** - Admins, VIPs, modérateurs automatiquement exclus
+- **Logs détaillés** - Traçabilité complète des actions anti-spam
+
+---
+
+## 📊 **Système de Logs Avancé**
+
+### **Types de Logs Détaillés**
+- 🔐 **Security Logs** - `logs/security.log`
+  - Tentatives d'accès non autorisées
+  - Violations de permissions
+  - Actions anti-spam détaillées
+  - Connexions/déconnexions suspectes
+
+- 🎮 **Twitch Integration** - `logs/twitch.log`
+  - API calls et réponses
+  - Erreurs de connexion
+  - Changements de statut stream
+  - Actions VIP/Modérateur
+
+- 🎤 **Voice Activities** - `logs/voice.log`
+  - Création/suppression salons temporaires
+  - Transferts de propriété
+  - Modifications de permissions
+  - Statistiques d'utilisation
+
+- 🛡️ **Moderation Actions** - `logs/moderation.log`
+  - Bans, kicks, timeouts, warns
+  - Actions automatiques vs manuelles
+  - Raisons détaillées
+  - Historique des sanctions
+
+- ⚙️ **System Operations** - `logs/system.log`
+  - Démarrages/arrêts de modules
+  - Rechargements de commandes
+  - Erreurs critiques
+  - Performance metrics
+
+- 📊 **Analytics** - `logs/analytics.log`
+  - Utilisation des commandes
+  - Statistiques utilisateurs
+  - Métriques de performance
+  - Tendances d'activité
+
+### **Format de Logs Structuré**
+```
+[2024-12-XX HH:MM:SS] [LEVEL] [MODULE] [USER:ID] [GUILD:ID] Message détaillé
+[2024-12-XX 14:30:15] [WARN] [ANTISPAM] [User#1234:123456789] [Guild:987654321] Spam détecté: 3 messages identiques en 15s
+[2024-12-XX 14:30:16] [INFO] [ANTISPAM] [User#1234:123456789] [Guild:987654321] Action: Timeout 5min appliqué
+[2024-12-XX 14:35:20] [ERROR] [TWITCH] [System] API Rate limit exceeded, retry in 60s
+```
+
+### **Rotation et Archivage**
+- ✅ Rotation quotidienne des logs
+- ✅ Compression automatique (7 jours)
+- ✅ Archivage long terme (30 jours)
+- ✅ Nettoyage automatique des anciens logs
+
+### **Monitoring en Temps Réel**
+- 📈 Dashboard intégré `/admin dashboard`
+- 🚨 Alertes automatiques pour erreurs critiques
+- 📊 Graphiques d'utilisation
+- ⚡ Métriques de performance live
 
 ---
 

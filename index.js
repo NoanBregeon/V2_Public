@@ -107,7 +107,8 @@ class ModuleManager {
             'voiceManager', 
             'moderationManager',
             'welcomeManager',
-            'interactionHandler' // Ajouté pour les boutons
+            'interactionHandler',
+            'antiSpamManager' // Ajouté
         ];
 
         console.log('🔄 Chargement des modules...');
@@ -206,6 +207,13 @@ client.on('interactionCreate', async (interaction) => {
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+    
+    // ANTI-SPAM: Vérifier le message avant tout traitement
+    const antiSpamManager = moduleManager?.getModule('antiSpamManager');
+    if (antiSpamManager) {
+        const isSpam = await antiSpamManager.checkMessage(message);
+        if (isSpam) return; // Arrêter le traitement si c'est du spam
+    }
     
     const commandHandler = moduleManager?.getModule('commandHandler');
     if (commandHandler) {

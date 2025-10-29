@@ -24,6 +24,7 @@ class TwitchBridge {
     }
 
     async initialize() {
+        this.logger = require('../utils/logger');
         console.log('🎮 TwitchBridge V2 - Initialisation optimisée');
         
         // Démarrer la vérification toutes les 1 minute
@@ -124,8 +125,19 @@ class TwitchBridge {
             this.isLive = isCurrentlyLive;
             this.retryCount = 0; // Reset sur succès
             
+            this.logger.twitch('DEBUG', 'Vérification statut stream réussie', {
+                userId: 'System',
+                guildId: 'System',
+                extra: { isLive: isCurrentlyLive, streamId: this.lastStreamId }
+            });
+            
         } catch (error) {
-            console.error('❌ Erreur vérification statut Twitch:', error);
+            this.logger.twitch('ERROR', 'Erreur vérification statut Twitch', {
+                userId: 'System', 
+                guildId: 'System',
+                extra: { error: error.message }
+            });
+            
             await this.handleApiError(error);
         }
     }
@@ -258,6 +270,16 @@ class TwitchBridge {
                 content,
                 embeds: [embed],
                 components: [button]
+            });
+            
+            this.logger.twitch('INFO', `Notification stream envoyée: ${streamData.title}`, {
+                userId: 'System',
+                guildId: channel.guild?.id || 'Unknown',
+                extra: {
+                    streamTitle: streamData.title,
+                    category: streamData.game_name,
+                    viewers: streamData.viewer_count
+                }
             });
             
             console.log('🔴 Notification de stream envoyée avec succès');
