@@ -473,7 +473,7 @@ mkdir data
 ```
 
 #### **2. Configuration .env pour VPS**
-```env
+```
 # Discord
 DISCORD_TOKEN=
 DISCORD_CLIENT_ID=
