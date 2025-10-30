@@ -9,6 +9,7 @@ const tmi = require('tmi.js'); // Pour le chat relay
 const safePing = require('../modules/utils/safePing');
 const pingGate = require('../modules/utils/pingGate');
 const notificationConfig = require('../modules/utils/notificationConfig');
+const badgeMapper = require('../modules/utils/badgeMapper');
 
 class TwitchBridge {
     constructor(client, config) {
@@ -20,6 +21,7 @@ class TwitchBridge {
         this.lastStreamId = null; // Anti-spam
         this.retryCount = 0;
         this.maxRetries = 3;
+        this.messageMap = new Map(); // <-- initialiser pour éviter "this.messageMap.set is not a function"
         
         // Chat relay Twitch → Discord
         this.twitchChat = null;
@@ -33,6 +35,30 @@ class TwitchBridge {
         // Démarrer la vérification toutes les 1 minute
         if (this.config.twitchClientId && this.config.streamerUsername) {
             this.startLiveCheck();
+        }
+    }
+
+    // Retourne le salon Discord pour RELAYER le chat Twitch (séparé du canal de notifications live)
+    _getRelayChannel() {
+        const id =
+            // priorité : canal de relay / notifications (chat), pas le canal de live-ping
+            this.config.twitchRelayChannelId ||
+            this.config.relayChannelId ||
+            this.config.notificationsChannelId ||
+            this.config.logsChannelId ||
+            this.config.moderationChannelId ||
+            // fallback sur variables d'environnement dédiées
+            process.env.TWITCH_RELAY_CHANNEL_ID ||
+            process.env.NOTIFICATIONS_CHANNEL_ID ||
+            process.env.LOGS_CHANNEL_ID ||
+            process.env.MODERATION_CHANNEL_ID;
+
+        if (!id || !this.client || !this.client.channels?.cache) return null;
+        try {
+            const ch = this.client.channels.cache.get(id);
+            return ch || null;
+        } catch {
+            return null;
         }
     }
 
@@ -59,7 +85,11 @@ class TwitchBridge {
                     ? message.replace(/[\u0000-\u001F]/g, '')
                     : message;
 
-                const content = `💬 [Twitch | ${tags['display-name'] || tags.username}] ${clean}`;
+                // Utiliser badgeMapper pour insérer des badges personnalisés
+                const badgePrefix = badgeMapper.getBadges(tags); // ex: "🛡️ ⭐ "
+                const author = tags['display-name'] || tags.username;
+                const content = `💬 [Twitch | ${badgePrefix}${author}] ${clean}`;
+
                 // Envoi via safePing (évitera les mentions si ping désactivé)
                 const sent = await safePing.send(relayChannel, { content });
 
@@ -99,14 +129,11 @@ class TwitchBridge {
             if (!channel) return;
 
             // Format du message avec badges
-            let badges = '';
-            if (tags.mod) badges += '🛡️';
-            if (tags.vip) badges += '💎';
-            if (tags.subscriber) badges += '⭐';
-
-            const formattedMessage = `${badges} **${tags['display-name']}**: ${message}`;
+            const badgePrefix = badgeMapper.getBadges(tags);
+            const formattedMessage = `${badgePrefix}**${tags['display-name'] || tags.username}**: ${message}`;
             
-            await channel.send(formattedMessage);
+            // Utiliser safePing pour cohérence / neutralisation si nécessaire
+            await safePing.send(channel, formattedMessage);
         } catch (error) {
             console.error('❌ Erreur relay chat:', error);
         }
@@ -233,89 +260,103 @@ class TwitchBridge {
     }
 
     async handleStreamStart(streamData) {
-        if (!this.config.liveNotificationsChannelId) return;
-        
         try {
-            const channel = await this.client.channels.fetch(this.config.liveNotificationsChannelId);
-            if (!channel) return;
-            
-            // Obtenir le rôle de notification
-            const guild = channel.guild;
-            const notifRole = guild.roles.cache.find(r => r.name === 'Live Notifications');
-            
-            // Embed riche optimisé
+            // 0) Anti-rebond + transition OFF→ON AVANT TOUT (évite accès client si on doit sortir)
+            const { shouldNotifyTransition, recordAfterNotify } = require('../modules/utils/pingGate');
+            const isLiveNow = true;
+            if (!shouldNotifyTransition(isLiveNow)) {
+                console.log('⏸️ Live: pas de transition OFF→ON ou fenêtre anti-reboot');
+                return;
+            }
+
+            // 1) Respect strict de la conf livePing AVANT TOUT
+            const notificationConfig = require('../modules/utils/notificationConfig');
+            try { notificationConfig.reload?.(); } catch (e) { /* ignore */ }
+            if (!notificationConfig.isLivePingEnabled()) {
+                console.log('🔕 livePing=OFF → aucune notification envoyée');
+                return;
+            }
+
+            // 2) Client prêt ? (évite "Cannot read properties of undefined (reading 'channels')")
+            if (!this.client || typeof this.client.channels?.fetch !== 'function') {
+                console.log('⏳ Client Discord non prêt → skip notification');
+                return;
+            }
+
+            // 3) Canal configuré ?
+            const channelId = this.config.relayChannelId || this.config.liveNotificationsChannelId || process.env.LIVE_NOTIFICATIONS_CHANNEL_ID;
+            if (!channelId) {
+                console.warn('⚠️ Aucun canal de notifications live configuré (relayChannelId / liveNotificationsChannelId / LIVE_NOTIFICATIONS_CHANNEL_ID absent)');
+                return;
+            }
+
+            // 4) Fetch du channel (désormais sûr)
+            const channel = this.client.channels.cache.get(channelId) || await this.client.channels.fetch(channelId).catch(() => null);
+            if (!channel || !channel.isTextBased()) {
+                console.warn('⚠️ Canal de notifications introuvable ou non textuel:', channelId);
+                return;
+            }
+
+            // 5) Construire le message sans fallback mention (@here supprimé)
+            const roleId = notificationConfig.getPingRoleId(); // null si non configuré / OFF
+            const configuredMsg = notificationConfig.getPingMessage();
+            const baseMsg = (configuredMsg && String(configuredMsg).trim())
+              ? configuredMsg
+              : `🔴 ${streamData.user_name || this.config.streamerUsername} est en live${streamData.title ? ` — ${streamData.title}` : ''}`;
+
+            const msg = baseMsg
+              .replace(/{streamer}/g, streamData.user_name || this.config.streamerUsername || '')
+              .replace(/{title}/g, streamData.title || '');
+
+            const content = roleId ? `<@&${roleId}> ${msg}` : msg;
+
+            // 6) Embed / components
             const embed = {
-                title: '🔴 LIVE MAINTENANT !',
-                description: `**${this.config.streamerUsername}** est en direct !`,
-                fields: [
-                    {
-                        name: '🎮 Titre',
-                        value: streamData.title || 'Pas de titre',
-                        inline: false
-                    },
-                    {
-                        name: '🎯 Catégorie',
-                        value: streamData.game_name || 'Juste Chatting',
-                        inline: true
-                    },
-                    {
-                        name: '👥 Spectateurs',
-                        value: streamData.viewer_count.toString(),
-                        inline: true
-                    }
-                ],
-                color: 0x9146FF,
-                timestamp: new Date().toISOString(),
-                thumbnail: {
-                    url: streamData.thumbnail_url.replace('{width}', '320').replace('{height}', '180')
-                },
-                footer: {
-                    text: 'Twitch',
-                    icon_url: 'https://static-cdn.jtvnw.net/jtv_user_pictures/8a6381c7-d0c0-4576-b179-38bd5ce1d6af-profile_image-70x70.png'
-                }
+              title: streamData.title || 'Live en cours',
+              description: `📺 **${streamData.user_name || this.config.streamerUsername}** est en direct !`,
+              color: 0x9146FF,
+              timestamp: new Date().toISOString(),
+              fields: [
+                { name: '🎮 Catégorie', value: String(streamData.game_name || 'Non défini'), inline: true },
+                { name: '👥 Spectateurs', value: String(streamData.viewer_count || 0), inline: true }
+              ],
+              url: `https://twitch.tv/${streamData.user_login || this.config.streamerUsername}`,
+              thumbnail: { url: (streamData.thumbnail_url || '').replace('{width}', '320').replace('{height}', '180') }
             };
 
-            // Bouton interactif pour notifications
             const button = {
-                type: 1,
-                components: [{
-                    type: 2,
-                    style: 1,
-                    label: '🔔 Recevoir les notifications',
-                    custom_id: 'twitch_notif_toggle'
-                }, {
-                    type: 2,
-                    style: 5,
-                    label: '📺 Regarder le stream',
-                    url: `https://twitch.tv/${this.config.streamerUsername}`
-                }]
+              type: 1,
+              components: [{
+                type: 2,
+                style: 5,
+                label: '📺 Regarder le stream',
+                url: `https://twitch.tv/${streamData.user_login || this.config.streamerUsername}`
+              }]
             };
-            
-            // Message avec mention du rôle si il existe
-            const content = notifRole ? `${notifRole}` : '@here';
-            
-            await channel.send({
-                content,
-                embeds: [embed],
-                components: [button]
-            });
-            
-            this.logger.twitch('INFO', `Notification stream envoyée: ${streamData.title}`, {
+
+            // 7) Envoi sécurisé via safePing (neutralise mentions si nécessaire)
+            const sent = await safePing.send(channel, { content, embeds: [embed], components: [button] });
+            if (sent && sent.id) {
+              console.log('🟢 Notification de stream envoyée (respect config)');
+              this.logger?.twitch?.('INFO', `Notification stream envoyée: ${streamData.title || 'sans titre'}`, {
                 userId: 'System',
                 guildId: channel.guild?.id || 'Unknown',
-                extra: {
-                    streamTitle: streamData.title,
-                    category: streamData.game_name,
-                    viewers: streamData.viewer_count
-                }
+                extra: { streamTitle: streamData.title, category: streamData.game_name, viewers: streamData.viewer_count }
+              });
+            } else {
+              console.log('ℹ️ Notification live neutralisée (contenu vide après sanitization ou envoi bloqué)');
+            }
+
+            // 8) Enregistrer état pour anti-rebond
+            try { recordAfterNotify(isLiveNow); } catch (e) {}
+          } catch (error) {
+            this.logger?.twitch?.('ERROR', 'Erreur envoi notification stream', {
+              userId: 'System',
+              guildId: this.config.guildId || 'Unknown',
+              extra: { error: error?.message || String(error) }
             });
-            
-            console.log('🔴 Notification de stream envoyée avec succès');
-            
-        } catch (error) {
             console.error('❌ Erreur notification stream:', error);
-            this.logError('Stream notification failed', error);
-        }
+          }
     }
 
     async handleStreamEnd() {
