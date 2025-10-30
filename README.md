@@ -472,39 +472,6 @@ cp V2_Public/.env ./
 mkdir data
 ```
 
-#### **2. Configuration .env pour VPS**
-```
-# Discord
-DISCORD_TOKEN=
-DISCORD_CLIENT_ID=
-GUILD_ID=
-
-# Twitch
-TWITCH_CLIENT_ID=
-TWITCH_USER_TOKEN=
-STREAMER_USERNAME=
-TWITCH_BOT_USERNAME=
-TWITCH_BOT_TOKEN=:
-
-# Canaux Discord (VOS VRAIS IDs)
-LIVE_NOTIFICATIONS_CHANNEL_ID=
-VOICE_INSTRUCTIONS_CHANNEL_ID=
-VOICE_LOGS_CHANNEL_ID=
-VOICE_CATEGORY_ID=
-CREATE_VOICE_CHANNEL_ID=
-MODERATION_CHANNEL_ID=
-
-# Rôles (VOS VRAIS IDs)
-VIP_ROLE_ID=
-MODERATOR_ROLE_ID=
-DEFAULT_ROLE_ID=
-ADMIN_ROLE_ID=
-
-# Production
-NODE_ENV=production
-DEBUG=false
-LOG_LEVEL=INFO
-```
 
 #### **3. Transfer FileZilla**
 1. **Connexion VPS** - Host, Username, Password
