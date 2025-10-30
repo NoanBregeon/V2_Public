@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('./logger');
+const notificationConfig = require('./notificationConfig');
 
 class TemplateManager {
     constructor() {
@@ -123,8 +124,30 @@ class TemplateManager {
         };
         
         const embed = this.buildEmbed('liveNotification', variables);
-        const ping = this.templates.liveNotification.ping;
-        
+
+        // Si le live ping est désactivé globalement, ne pas renvoyer de mention ni de message de ping
+        if (!notificationConfig.isLivePingEnabled()) {
+            return { embed, ping: '' };
+        }
+
+        // Priorité gérée par notificationConfig : getPingMessage()/getPingRoleId() tiennent compte du kill-switch / .env
+        const roleId = notificationConfig.getPingRoleId();
+        const savedMsg = notificationConfig.getPingMessage();
+
+        if (roleId) {
+            // Préférence : mentionner le rôle si configuré
+            return { embed, ping: `<@&${roleId}>` };
+        }
+
+        if (savedMsg) {
+            // Remplacer les placeholders dans le message stocké
+            const pingMsg = this.replaceVariables(savedMsg, variables);
+            return { embed, ping: pingMsg };
+        }
+
+        // Fallback : utiliser le ping du template si présent et si non vide
+        const templatePing = this.templates?.liveNotification?.ping || '';
+        const ping = templatePing ? this.replaceVariables(templatePing, variables) : '';
         return { embed, ping };
     }
     

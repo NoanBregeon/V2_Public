@@ -1,3 +1,6 @@
+// Commande simple de latence (pong).
+// Ne gère PAS les notifications live / pings de rôle.
+// Utilisez /liveping pour activer/désactiver le ping des notifications de stream.
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
