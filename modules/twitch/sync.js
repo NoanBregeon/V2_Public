@@ -1,5 +1,7 @@
 const twitchAPI = require('./api');
 const logger = require('../utils/logger');
+const safePing = require('../utils/safePing');
+const pingGate = require('../utils/pingGate');
 
 class TwitchSync {
     constructor() {
@@ -123,15 +125,19 @@ class TwitchSync {
     
     async notifyDiscord(action, type, username) {
         if (!this.client || !process.env.LOGS_CHANNEL_ID) return;
-        
+
         try {
             const channel = this.client.channels.cache.get(process.env.LOGS_CHANNEL_ID);
             if (!channel) return;
-            
+
             const emoji = action === 'add' ? '✅' : '❌';
             const actionText = action === 'add' ? 'ajouté' : 'retiré';
-            
-            await channel.send(`${emoji} **${username}** ${actionText} comme ${type} sur Twitch`);
+
+            // anti-rebond : n'envoyer qu'en transition (si pertinent)
+            // ici on ne connaît pas isLiveNow ; si c'est utilisé pour live-notifs, utilisez pingGate.shouldPingTransition
+            const payload = `${emoji} **${username}** ${actionText} comme ${type} sur Twitch`;
+            await safePing.send(channel, payload);
+
         } catch (error) {
             logger.error('Erreur notification Discord:', error);
         }
