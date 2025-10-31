@@ -3,7 +3,37 @@
  * Architecture modulaire pour faciliter la maintenance
  */
 
+// Charger .env tôt
 require('dotenv').config();
+
+// --- FORCER le live-ping OFF dès le démarrage si demandé ---
+// (priorité : FORCE_DISABLE_PINGS > LIVE_PING_ENABLED=false)
+try {
+	const notif = require('./modules/utils/notificationConfig');
+	const envKillRaw = (process.env.FORCE_DISABLE_PINGS || '').toString().toLowerCase();
+	const hardKill = envKillRaw === 'true' || envKillRaw === '1';
+	const envRaw = (process.env.LIVE_PING_ENABLED || '').toString().toLowerCase();
+	const envFalse = envRaw === 'false' || envRaw === '0';
+
+	if (hardKill || envFalse) {
+		// Appliquer et persister la désactivation
+		notif.setLivePing(false);
+		notif.setPingRoleId(null);
+		notif.setPingMessage(null);
+		// Vider les variables d'env pour couvrir les lectures directes
+		try { process.env.LIVE_PING_ROLE_ID = ''; process.env.LIVE_PING_MESSAGE = ''; } catch (e) {}
+		// Recharger la config en mémoire
+		if (typeof notif.reload === 'function') notif.reload();
+		console.log(`🔕 Live-ping forcé OFF au démarrage (FORCE_DISABLE_PINGS=${process.env.FORCE_DISABLE_PINGS}, LIVE_PING_ENABLED=${process.env.LIVE_PING_ENABLED})`);
+	} else {
+		// Pas d'override forcé : recharger simplement la config pour avoir l'état effectif
+		if (typeof notif.reload === 'function') notif.reload();
+		console.log(`🔍 Live-ping : état initial = ${notif.isLivePingEnabled() ? 'ON' : 'OFF'}`);
+	}
+} catch (e) {
+	console.warn('⚠️ Impossible d\'appliquer l\'override live-ping au démarrage:', e.message);
+}
+
 const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
