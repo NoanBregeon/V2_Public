@@ -1,6 +1,6 @@
 # Privacy Policy - Bot Discord V2
 
-**Dernière mise à jour :** Décembre 2024
+**Dernière mise à jour :** Octobre 2025
 
 ## 1. Introduction
 
