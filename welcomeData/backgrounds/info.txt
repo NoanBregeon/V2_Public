@@ -1,6 +1,0 @@
-Placez vos images de fond pour les cartes de bienvenue dans ce dossier.
-
-Format recommandé : PNG ou JPG, 1024x500 pixels
-Nommez votre image par défaut "default.png"
-
-Vous pouvez ajouter d'autres images et les configurer via la commande /welcome settings

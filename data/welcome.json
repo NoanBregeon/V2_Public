@@ -1,5 +1,4 @@
 {
-  "enabled": true,
-  "welcomeMessages": [],
-  "leaveMessages": []
+  "enabled": false,
+  "messages": {}
 }

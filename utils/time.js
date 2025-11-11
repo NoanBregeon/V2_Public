@@ -1,0 +1,1 @@
+function parseDuration(i){const m=String(i||'').trim().match(/^([0-9]+)\s*(s|m|h|d)$/i); if(!m) return null; const n=parseInt(m[1],10); const mult={s:1000,m:60000,h:3600000,d:86400000}; return n*mult[m[2].toLowerCase()];} module.exports={parseDuration};

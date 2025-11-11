@@ -1,0 +1,4 @@
+const { SlashCommandBuilder } = require('discord.js');
+const axios = require('axios');
+const { helixHeaders, resolveBroadcasterId } = require('../services/twitch');
+module.exports = { data:new SlashCommandBuilder().setName('streaminfo').setDescription('Informations sur le stream').setDMPermission(false), async execute(i){ if(!process.env.TWITCH_CLIENT_ID||!process.env.TWITCH_USER_TOKEN||!process.env.STREAMER_USERNAME){ return i.reply({ content:'⚠️ Twitch non configuré.', flags:64 }); } const user_id=await resolveBroadcasterId(); const s=await axios.get('https://api.twitch.tv/helix/streams',{ params:{ user_id }, headers: helixHeaders() }).then(r=>r.data?.data?.[0]).catch(()=>null); if(!s) return i.reply({ content:`${process.env.STREAMER_USERNAME} est offline.`, flags:64 }); await i.reply({ content:`🎥 ${process.env.STREAMER_USERNAME} est **live**: ${s.title} — ${s.viewer_count} viewers`, flags:64 }); } };

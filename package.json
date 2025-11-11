@@ -1,34 +1,23 @@
 {
-  "name": "bot-discord-v2",
+  "name": "discord-twitch-bot-v2",
   "version": "2.0.0",
-  "description": "Bot Discord modulaire avec intégration Twitch sécurisée",
+  "description": "Discord + Twitch bot (Helix + tmi.js) with tickets, moderation, roles, voice, welcome, and admin reload. Matches unified .env schema.",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "node --inspect index.js",
-    "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop bot-discord-v2",
-    "pm2:restart": "pm2 restart bot-discord-v2"
-  },
-  "dependencies": {
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.3.1",
-    "axios": "^1.6.0",
-    "node-cron": "^3.0.3",
-    "tmi.js": "^1.8.5"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
+  "type": "commonjs",
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": [
-    "discord",
-    "bot",
-    "twitch",
-    "modular"
-  ],
-  "author": "Fury Nocturne 2.0",
-  "license": "PRIVATE"
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "discord.js": "^14.24.2",
+    "dotenv": "^16.6.1",
+    "tmi.js": "^1.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
 }
