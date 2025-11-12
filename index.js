@@ -47,3 +47,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN).catch(e => { console.error('❌ Login échec:', e?.message || e); process.exit(1); });
+
+// Handlers: events logging
+const logEvents = require('./handlers/logEvents');
+logEvents.register(client);
