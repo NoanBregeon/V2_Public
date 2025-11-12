@@ -222,5 +222,3 @@ Le projet a été développé dans le cadre du **BTS SIO option SLAM**, afin d�
 - **TMI.js** (chat Twitch)  
 - **Axios** (requêtes HTTP Helix)  
 - **dotenv** (variables d’environnement)  
-
-### Architecture générale :
