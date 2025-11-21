@@ -1,82 +1,75 @@
-const { Collection, REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { ensure } = require('../utils/guards');
+const { REST, Routes, Collection, Events } = require('discord.js');
+const { enforceAdmin } = require('../utils/permissions');
 
-class CommandHandler {
-  constructor(client, config){ this.client=client; this.config=config; this.commands=new Collection(); }
+function collectCommands(dir, list = []) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) collectCommands(full, list);
+    else if (e.isFile() && e.name.endsWith('.js')) list.push(full);
+  }
+  return list;
+}
 
-  async loadCommands(){
-    this.commands.clear();
-    const dir = path.join(__dirname, '../commands');
-    if (!fs.existsSync(dir)) return console.warn('⚠️ commands/ manquant');
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'));
-    for (const f of files){
-      const full = path.join(dir, f);
-      delete require.cache[require.resolve(full)];
-      const mod = require(full);
-      const arr = Array.isArray(mod) ? mod : [mod];
-      for (const cmd of arr){
-        if (!cmd?.data || typeof cmd.execute !== 'function') { console.warn('⚠️ invalide:', f); continue; }
-        const name = cmd.data.name;
-        if (this.commands.has(name)) console.warn('⚠️ collision /'+name+' (écrasée par '+f+')');
-        this.commands.set(name, cmd);
+async function deployGuildCommands(client) {
+  const guildId = process.env.GUILD_ID;
+  const appId = process.env.DISCORD_CLIENT_ID;
+  if (!guildId || !appId) {
+    console.log('⚠️ GUILD_ID ou DISCORD_CLIENT_ID manquant — skip deploy.');
+    return;
+  }
+  const body = [];
+  client.commands.forEach(cmd => body.push(cmd.data.toJSON()));
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  await rest.put(Routes.applicationGuildCommands(appId, guildId), { body });
+  console.log(`🔁 Slash Commands déployées sur la guilde ${guildId} (${client.commands.size} cmds)`);
+}
+
+module.exports.register = (client) => {
+  const cmdFiles = collectCommands(path.join(__dirname, '..', 'commands'));
+  for (const file of cmdFiles) {
+    const mod = require(file);
+    if (Array.isArray(mod)) {
+      for (const c of mod) client.commands.set(c.data.name, c);
+    } else if (mod?.data?.name) {
+      client.commands.set(mod.data.name, mod);
+    }
+  }
+  console.log(`🔗 Loaded ${client.commands.size} commands`);
+
+  client.on(Events.ClientReady, async () => {
+    try {
+      if (String(process.env.CLEAN_COMMANDS_ON_START).toLowerCase() === 'true') {
+        await deployGuildCommands(client);
+      }
+    } catch (e) {
+      console.error('deploy error:', e);
+    }
+  });
+
+  client.on('interactionCreate', async (interaction) => {
+    try {
+      if (!interaction.isChatInputCommand()) return;
+      const cmd = client.commands.get(interaction.commandName);
+      if (!cmd) return;
+
+      if (cmd.meta?.guildOnly && !interaction.guild) {
+        return interaction.reply({ content: 'Commande serveur uniquement.', ephemeral: true });
+      }
+      if (cmd.meta?.adminOnly) {
+        const ok = await enforceAdmin(interaction);
+        if (!ok) return;
+      }
+      await cmd.execute(interaction);
+    } catch (err) {
+      console.error('interaction error:', err);
+      if (interaction.replied || interaction.deferred) {
+        interaction.followUp({ content: 'Erreur interne.', ephemeral: true }).catch(()=>{});
+      } else {
+        interaction.reply({ content: 'Erreur interne.', ephemeral: true }).catch(()=>{});
       }
     }
-    console.log('✅ Commandes chargées:', this.commands.size);
-  }
-
-  async registerSlashCommands(){
-    if (!this.client.user) return;
-    const body = [...this.commands.values()].map(c => c.data.toJSON());
-    const rest = new REST({ version: '10' }).setToken(this.config.token);
-    const guildIds = this.config.guildIds && this.config.guildIds.length ? this.config.guildIds : [];
-    if (!guildIds.length) {
-      console.log('⚠️ Aucun GUILD_ID fourni — enregistrement global (lent).');
-      await rest.put(Routes.applicationCommands(this.client.user.id), { body });
-      return;
-    }
-    for (const gid of guildIds) {
-      console.log('🔄 Enregistrement', body.length, 'commandes sur', gid);
-      await rest.put(Routes.applicationGuildCommands(this.client.user.id, gid), { body });
-      try {
-        const cmds = await this.client.application.commands.fetch({ guildId: gid });
-        console.log('📦 Visibles sur', gid, ':', cmds.size, cmds.map(c => '/'+c.name).join(', '));
-      } catch {}
-    }
-  }
-
-  async cleanAllCommands(){
-    if (!this.client.user) return;
-    const rest = new REST({ version: '10' }).setToken(this.config.token);
-    const guildIds = this.config.guildIds && this.config.guildIds.length ? this.config.guildIds : [];
-    if (!guildIds.length) {
-      console.log('🧹 Nettoyage global');
-      await rest.put(Routes.applicationCommands(this.client.user.id), { body: [] });
-      return;
-    }
-    for (const gid of guildIds) {
-      console.log('🧹 Nettoyage des commandes (guilde)', gid);
-      await rest.put(Routes.applicationGuildCommands(this.client.user.id, gid), { body: [] });
-    }
-  }
-
-  async handleInteraction(interaction){
-    if (!interaction.isChatInputCommand()) return;
-    const cmd = this.commands.get(interaction.commandName);
-    if (!cmd) return interaction.reply({ content: '❌ Commande inconnue.', flags: 64 });
-    try {
-      // <<< GARDE-FOUS ICI
-      const guardError = await ensure(interaction, cmd);
-      if (guardError) return; // une réponse a déjà été envoyée par le guard
-
-      await cmd.execute(interaction);
-    } catch (e) {
-      console.error('❌ Erreur /'+interaction.commandName+':', e);
-      const payload = { content: '❌ Erreur pendant l’exécution.', flags: 64 };
-      if (interaction.replied || interaction.deferred) await interaction.followUp(payload);
-      else await interaction.reply(payload);
-    }
-  }
-}
-module.exports = CommandHandler;
+  });
+};
