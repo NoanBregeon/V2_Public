@@ -73,5 +73,6 @@ typedoc/
 # Ignorer éventuels fichiers de génération d’images / canvas
 canvas-build/
 tmp/
+*.zip
 
 # Fin
