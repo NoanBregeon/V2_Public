@@ -41,6 +41,10 @@ function isOwner(channelId, userId) {
   return store.rooms[channelId]?.owner === userId;
 }
 
+function userAlreadyHasRoom(userId) {
+  return Object.values(store.rooms).some(r => r.owner === userId);
+}
+
 // =========================
 // INFO MESSAGE (Text-in-Voice)
 // =========================
@@ -64,6 +68,23 @@ function sendVoiceInfoMessage(voiceChannel, ownerId) {
       console.error('[voiceTemp] sendVoiceInfoMessage error:', err);
     }
   }, 1000);
+}
+
+// =========================
+// OWNER TRANSFER
+// =========================
+function transferOwnership(channel, newOwnerId) {
+  if (!store.rooms[channel.id]) return;
+
+  store.rooms[channel.id].owner = newOwnerId;
+  saveStore();
+
+  channel.permissionOverwrites.edit(newOwnerId, {
+    ViewChannel: true,
+    Connect: true,
+    ManageChannels: true,
+    MoveMembers: true
+  }).catch(() => {});
 }
 
 // =========================
@@ -114,7 +135,8 @@ module.exports = {
         if (
           newCh &&
           newCh.id === createId &&
-          (!oldCh || oldCh.id !== createId)
+          (!oldCh || oldCh.id !== createId) &&
+          !userAlreadyHasRoom(member.id)
         ) {
           const category = guild.channels.cache.get(categoryId);
           if (!category || category.type !== ChannelType.GuildCategory) return;
@@ -157,13 +179,31 @@ module.exports = {
         }
 
         // =========================
-        // AUTO DELETE EMPTY
+        // OWNER LEAVE / DELETE
         // =========================
         if (
           oldCh &&
           oldCh.parentId === categoryId &&
           oldCh.id !== createId
         ) {
+          const room = store.rooms[oldCh.id];
+
+          // transfert automatique si l'owner quitte
+          if (room && room.owner === member.id) {
+            const remaining = [...oldCh.members.values()].filter(m => m.id !== member.id);
+
+            if (remaining.length > 0) {
+              const newOwner = remaining[0];
+              transferOwnership(oldCh, newOwner.id);
+
+              if (typeof oldCh.send === 'function') {
+                oldCh.send({
+                  content: `👑 <@${newOwner.id}> est maintenant propriétaire du salon.`
+                }).catch(() => {});
+              }
+            }
+          }
+
           deleteIfStillEmpty(oldCh, 3000);
         }
       } catch (err) {
@@ -178,7 +218,8 @@ module.exports = {
       isOwner,
       getOwner(channelId) {
         return store.rooms[channelId]?.owner || null;
-      }
+      },
+      transferOwnership
     };
   }
 };
