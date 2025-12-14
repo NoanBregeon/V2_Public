@@ -20,11 +20,13 @@ client.moduleManager.register('commandHandler', commandHandler);
 const ticketService = require('./services/ticketService');
 client.moduleManager.register('ticketService', ticketService);
 
-const voiceRooms = require('./services/voiceRooms');
+// const voiceRooms = require('./services/voiceRooms'); // REMOVED
 
+/*
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
   await voiceRooms.onVoiceStateUpdate(oldState, newState);
 });
+*/
 
 client.once(Events.ClientReady, async () => {
   console.log(`🤖 Connecté en tant que ${client.user.tag}`);

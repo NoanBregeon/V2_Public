@@ -1,6 +1,6 @@
 // commands/voice.js
 const { SlashCommandBuilder, ChannelType } = require('discord.js');
-const voiceRooms = require('../services/voiceRooms');
+// const voiceRooms = require('../services/voiceRooms'); // REMOVED
 
 function currentVC(i) { return i.member.voice?.channel || null; }
 
@@ -9,7 +9,8 @@ async function ensureOwner(i, ch) {
     await i.reply({ content: '❌ Tu dois être dans un salon vocal.', ephemeral: true });
     return false;
   }
-  const owner = voiceRooms.isOwner(ch.id, i.user.id);
+  // Use client.voiceTemp as per rules
+  const owner = i.client.voiceTemp?.isOwner(ch.id, i.user.id);
   if (!owner) {
     await i.reply({ content: '⛔ Seul le **créateur** de ce salon peut utiliser cette commande.', ephemeral: true });
     return false;
@@ -77,8 +78,14 @@ module.exports = [
       const ch = currentVC(i);
       if (!(await ensureOwner(i, ch))) return;
       const target = i.options.getUser('utilisateur');
-      await voiceRooms.transferOwnership(ch, target.id);
-      await i.reply({ content: `✅ Propriété transférée à <@${target.id}>.` });
+      
+      // Use client.voiceTemp
+      if (i.client.voiceTemp?.transferOwnership) {
+        i.client.voiceTemp.transferOwnership(ch, target.id);
+        await i.reply({ content: `✅ Propriété transférée à <@${target.id}>.` });
+      } else {
+        await i.reply({ content: '❌ Erreur interne: système vocal non chargé.', ephemeral: true });
+      }
     }
   }
 ];
