@@ -10,21 +10,38 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent
   ],
-  partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.Reaction, Partials.User]
+  partials: [
+    Partials.Channel,
+    Partials.GuildMember,
+    Partials.Message,
+    Partials.Reaction,
+    Partials.User
+  ]
 });
 
 client.commands = new Collection();
 
+// =========================
+// HANDLERS
+// =========================
 const commandHandler = require('./handlers/commandHandler');
 const ticketButtons = require('./handlers/ticketButtons');
 const logEvents = require('./handlers/logEvents');
 const { startTwitchRelay } = require('./services/twitchChat');
 
+// ⬇️ ⬇️ ⬇️
+// LE PLUS IMPORTANT : AVANT LES COMMANDES
+require('./handlers/voiceTemp').register(client);
+// ⬆️ ⬆️ ⬆️
 
+// Ensuite seulement
 commandHandler.register(client);
 ticketButtons.register(client);
 logEvents.register(client);
-// ✅ Compatible v14 et prêt pour v15
+
+// =========================
+// READY
+// =========================
 client.once(Events.ClientReady, () => {
   console.log(`✅ Connecté en tant que ${client.user.tag}`);
   client.user.setPresence({
@@ -32,12 +49,10 @@ client.once(Events.ClientReady, () => {
     status: 'online'
   });
 
-  // 🔁 On démarre le relay Twitch -> Discord
   startTwitchRelay(client);
 });
 
-
+// =========================
+// LOGIN (EN DERNIER)
+// =========================
 client.login(process.env.DISCORD_TOKEN);
-require('./handlers/ticketButtons').register(client);
-
-require('./handlers/voiceTemp').register(client);

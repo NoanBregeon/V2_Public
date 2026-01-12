@@ -66,162 +66,140 @@ module.exports = {
           const id = interaction.customId;
 
           // ---------- OUVERTURE ----------
-          if (id === OPEN_ID) {
-            const guild = interaction.guild;
-            if (!guild) return;
-
-            const categoryId = process.env.TICKET_CATEGORY_ID;
-            if (!categoryId) {
-              return safeReply(interaction, {
-                content: '❌ Configuration invalide : `TICKET_CATEGORY_ID` est vide.',
-                ephemeral: true,
+            if (id === OPEN_ID) {
+              await interaction.deferReply({ ephemeral: true });
+              const guild = interaction.guild;
+              if (!guild) return;
+              // ... TOUT ton code inchangé ...
+              const categoryId = process.env.TICKET_CATEGORY_ID;
+              if (!categoryId) {
+                return interaction.editReply({
+                  content: '❌ Configuration invalide : `TICKET_CATEGORY_ID` est vide.',
+                });
+              }
+              const category = guild.channels.cache.get(categoryId);
+              if (!category || category.type !== ChannelType.GuildCategory) {
+                return interaction.editReply({
+                  content: '❌ La catégorie de tickets est introuvable ou n’est pas une catégorie.',
+                });
+              }
+              const user = interaction.user;
+              // évite les tickets en double
+              const existing = guild.channels.cache.find(
+                (ch) =>
+                  ch.parentId === categoryId &&
+                  ch.type === ChannelType.GuildText &&
+                  ch.topic &&
+                  ch.topic.includes(`ticketOwner:${user.id}`)
+              );
+              if (existing) {
+                return interaction.editReply({
+                  content: `⚠️ Vous avez déjà un ticket ouvert : ${existing}`,
+                });
+              }
+              const baseName = `ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
+              let name = baseName;
+              let idx = 1;
+              while (guild.channels.cache.some((c) => c.name === name && c.parentId === categoryId)) {
+                name = `${baseName}-${idx++}`;
+              }
+              const overwrites = [
+                {
+                  id: guild.roles.everyone.id,
+                  deny: [PermissionFlagsBits.ViewChannel],
+                },
+                {
+                  id: user.id,
+                  allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.EmbedLinks,
+                  ],
+                },
+              ];
+              const adminRoleId = process.env.ADMIN_ROLE_ID;
+              const modRoleId = process.env.MODERATOR_ROLE_ID;
+              if (modRoleId) {
+                overwrites.push({
+                  id: modRoleId,
+                  allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages,
+                  ],
+                });
+              }
+              if (adminRoleId) {
+                overwrites.push({
+                  id: adminRoleId,
+                  allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages,
+                    PermissionFlagsBits.ManageChannels,
+                  ],
+                });
+              }
+              if (guild.members.me?.id) {
+                overwrites.push({
+                  id: guild.members.me.id,
+                  allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageChannels,
+                    PermissionFlagsBits.ManageMessages,
+                    PermissionFlagsBits.AttachFiles,
+                    PermissionFlagsBits.EmbedLinks,
+                  ],
+                });
+              }
+              const channel = await guild.channels.create({
+                name,
+                type: ChannelType.GuildText,
+                parent: category.id,
+                topic: `ticketOwner:${user.id}`,
+                permissionOverwrites: overwrites,
+                reason: `Ticket ouvert par ${user.tag}`,
+              });
+              const embed = new EmbedBuilder()
+                .setTitle('🎫 Ticket ouvert')
+                .setDescription(
+                  `Bonjour ${user}, merci de détailler votre demande.\nUn membre du staff vous répondra dès que possible.`
+                )
+                .setColor(0x2b2d31)
+                .setTimestamp(new Date());
+              const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId(CLOSE_ID)
+                  .setLabel('Fermer')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId(ADD_ID)
+                  .setLabel('Ajouter')
+                  .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                  .setCustomId(REMOVE_ID)
+                  .setLabel('Retirer')
+                  .setStyle(ButtonStyle.Primary),
+              );
+              const rolePings = [];
+              if (adminRoleId) rolePings.push(`<@&${adminRoleId}>`);
+              if (modRoleId) rolePings.push(`<@&${modRoleId}>`);
+              let pingLine = '';
+              if (rolePings.length > 0) {
+                pingLine = rolePings.join(' ') + '\n';
+              }
+              const content = `${pingLine}<@${user.id}> a ouvert un ticket.`;
+              await channel.send({ content, embeds: [embed], components: [row] });
+              return interaction.editReply({
+                content: `🎫 Ticket créé : ${channel}`,
               });
             }
-
-            const category = guild.channels.cache.get(categoryId);
-            if (!category || category.type !== ChannelType.GuildCategory) {
-              return safeReply(interaction, {
-                content: '❌ La catégorie de tickets est introuvable ou n’est pas une catégorie.',
-                ephemeral: true,
-              });
-            }
-
-            const user = interaction.user;
-
-            // évite les tickets en double
-            const existing = guild.channels.cache.find(
-              (ch) =>
-                ch.parentId === categoryId &&
-                ch.type === ChannelType.GuildText &&
-                ch.topic &&
-                ch.topic.includes(`ticketOwner:${user.id}`)
-            );
-            if (existing) {
-              return safeReply(interaction, {
-                content: `⚠️ Vous avez déjà un ticket ouvert : ${existing}`,
-                ephemeral: true,
-              });
-            }
-
-            const baseName = `ticket-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '');
-            let name = baseName;
-            let idx = 1;
-            while (guild.channels.cache.some((c) => c.name === name && c.parentId === categoryId)) {
-              name = `${baseName}-${idx++}`;
-            }
-
-            const overwrites = [
-              {
-                id: guild.roles.everyone.id,
-                deny: [PermissionFlagsBits.ViewChannel],
-              },
-              {
-                id: user.id,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                  PermissionFlagsBits.AttachFiles,
-                  PermissionFlagsBits.EmbedLinks,
-                ],
-              },
-            ];
-
-            const adminRoleId = process.env.ADMIN_ROLE_ID;
-            const modRoleId = process.env.MODERATOR_ROLE_ID;
-
-            if (modRoleId) {
-              overwrites.push({
-                id: modRoleId,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                  PermissionFlagsBits.ManageMessages,
-                ],
-              });
-            }
-
-            if (adminRoleId) {
-              overwrites.push({
-                id: adminRoleId,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                  PermissionFlagsBits.ManageMessages,
-                  PermissionFlagsBits.ManageChannels,
-                ],
-              });
-            }
-
-            if (guild.members.me?.id) {
-              overwrites.push({
-                id: guild.members.me.id,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                  PermissionFlagsBits.ManageChannels,
-                  PermissionFlagsBits.ManageMessages,
-                  PermissionFlagsBits.AttachFiles,
-                  PermissionFlagsBits.EmbedLinks,
-                ],
-              });
-            }
-
-            const channel = await guild.channels.create({
-              name,
-              type: ChannelType.GuildText,
-              parent: category.id,
-              topic: `ticketOwner:${user.id}`,
-              permissionOverwrites: overwrites,
-              reason: `Ticket ouvert par ${user.tag}`,
-            });
-
-            const embed = new EmbedBuilder()
-              .setTitle('🎫 Ticket ouvert')
-              .setDescription(
-                `Bonjour ${user}, merci de détailler votre demande.\nUn membre du staff vous répondra dès que possible.`
-              )
-              .setColor(0x2b2d31)
-              .setTimestamp(new Date());
-
-            const row = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId(CLOSE_ID)
-                .setLabel('Fermer')
-                .setStyle(ButtonStyle.Secondary),
-              new ButtonBuilder()
-                .setCustomId(ADD_ID)
-                .setLabel('Ajouter')
-                .setStyle(ButtonStyle.Primary),
-              new ButtonBuilder()
-                .setCustomId(REMOVE_ID)
-                .setLabel('Retirer')
-                .setStyle(ButtonStyle.Primary),
-            );
-
-
-            const rolePings = [];
-            if (adminRoleId) rolePings.push(`<@&${adminRoleId}>`);
-            if (modRoleId) rolePings.push(`<@&${modRoleId}>`);
-
-            let pingLine = '';
-            if (rolePings.length > 0) {
-              pingLine = rolePings.join(' ') + '\n';
-            }
-
-            const content = `${pingLine}<@${user.id}> a ouvert un ticket.`;
-
-            await channel.send({ content, embeds: [embed], components: [row] });
-
-            return safeReply(interaction, {
-              content: `🎫 Ticket créé : ${channel}`,
-              ephemeral: true,
-            });
-
-          }
 
           // ---------- FERMER ----------
           if (id === CLOSE_ID) {

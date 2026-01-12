@@ -28,6 +28,7 @@ const relayByUsername = new Map();
 // Clic droit sur l'emoji -> "Copier l'identifiant" et remplace ID_...
 const BADGE_MODO  = '<:badgemodo:1441537294552273089>';
 const BADGE_FONDA = '<:badgefonda:1441536069802655886>';
+const BADGE_LEAD_MODO = '<:badgemodofirst:1453809360538173539>';
 
 const SUB_BADGES = {
   LYUBAW_1_MOIS:  '<:Lyubaw1mois:1087630336680263722>',
@@ -174,7 +175,11 @@ function startTwitchRelay(client) {
     const badgeList = [];
 
     if (badges.broadcaster) badgeList.push('📺');
-    if (badges.moderator) badgeList.push(BADGE_MODO);
+
+    // ajouter la check Lead Mod avant tout
+    if (badges['lead_moderator']) badgeList.push(BADGE_LEAD_MODO);
+    else if (badges.moderator) badgeList.push(BADGE_MODO);
+
     if (badges.vip) badgeList.push('💎');
 
     if (badges.founder) {
